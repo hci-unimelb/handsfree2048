@@ -1,0 +1,7 @@
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/CMakeFiles/native-lib.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/CMakeFiles/run.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/CMakeFiles/edit_cache.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/CMakeFiles/rebuild_cache.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/dlib_build/CMakeFiles/dlib.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/dlib_build/CMakeFiles/edit_cache.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/debug/x86_64/dlib_build/CMakeFiles/rebuild_cache.dir

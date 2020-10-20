@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Set màu nền-->
+<!--    #123-->
+    <solid
+        android:color="#123">
+    </solid>
+
+    <!-- 设置边框的颜色和宽度属性 -->
+    <!-- 这是四个角处的圆的半径 -->
+    <corners
+        android:radius="4dp" >
+    </corners>
+
+</shape>

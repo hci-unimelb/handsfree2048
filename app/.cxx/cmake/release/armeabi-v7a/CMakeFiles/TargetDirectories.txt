@@ -1,0 +1,7 @@
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/native-lib.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/run.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/edit_cache.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/CMakeFiles/rebuild_cache.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/dlib_build/CMakeFiles/dlib.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/dlib_build/CMakeFiles/edit_cache.dir
+E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/armeabi-v7a/dlib_build/CMakeFiles/rebuild_cache.dir

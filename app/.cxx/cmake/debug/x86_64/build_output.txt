@@ -1,0 +1,11 @@
+Using CMake version: 3.10.2
+Compiling dlib version: 19.21.0
+__ARM_NEON__ defined.
+NEON instructions will be used for libpng.
+Building a C++11 test project to see if your compiler supports C++11
+C++11 activated.
+OpenCV library status:
+    version: 4.4.0
+    libraries: opencv_calib3d;opencv_core;opencv_dnn;opencv_features2d;opencv_flann;opencv_gapi;opencv_highgui;opencv_imgcodecs;opencv_imgproc;opencv_ml;opencv_objdetect;opencv_photo;opencv_stitching;opencv_video;opencv_videoio
+    include path: E:/OpenCV-android-sdk-4.4.0/sdk/native/jni/include
+Configuring done

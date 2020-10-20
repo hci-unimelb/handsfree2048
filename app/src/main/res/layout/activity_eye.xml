@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".EyeActivity">
+
+    <TextView
+        android:id="@+id/instruction_view"
+        android:layout_width="match_parent"
+        android:layout_marginTop="40dp"
+        android:layout_height="150dp"
+        android:layout_marginLeft="20dp"
+        android:layout_marginRight="20dp"
+        android:gravity="center"
+        android:text="Calibration"
+        android:textSize="35dp" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="match_parent"
+        android:layout_height="35dp"
+        android:layout_below="@+id/instruction_view"
+        android:text="" />
+
+    <ImageView
+        android:id="@+id/camera_view"
+        android:layout_width="match_parent"
+        android:layout_height="500dp"
+        android:layout_below="@+id/textView"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="0dp"
+        android:layout_marginEnd="0dp" />
+
+</LinearLayout>
