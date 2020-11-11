@@ -10,6 +10,8 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -38,16 +40,17 @@ public class EyeActivity extends AppCompatActivity {
     private boolean saved;
     private int saveidx;
 
-    private ImageView mImageView, mEyeView;
+    private ImageView mImageView;
     private TextView mTextView;
     private SurfaceTexture surfacetexture;
     private TextView instruction;
-    private boolean flag = true;
 
-    private int viewWidth, viewHeight;  //mSurfaceView的宽和高
+    private int viewWidth, viewHeight;  //width and height of mSurfaceView
     private int eyeWidth, eyeHeigth;
     private int cameraWidth, cameraHeight;
     Timer timer;
+
+    private SoundPool mSoundPool = null;
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -59,15 +62,12 @@ public class EyeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_eye);
 
-        // Example of a call to a native method
-//        TextView tv = findViewById(R.id.sample_text);
-//        tv.setText(stringFromJNI());
         surfacetexture=new SurfaceTexture(10);
         mImageView = (ImageView)findViewById(R.id.camera_view);
-        //mEyeView = (ImageView)findViewById(R.id.eye_view);
         //mTextView = (TextView)findViewById(R.id.textView);
         instruction = (TextView)findViewById(R.id.instruction_view);
-        instruction.setText("First we need to perform eye calibration");
+        instruction.setText("Please make sure that the camera can detect your entire face");
+        instruction.setTextSize(25);
 
         String filename = "haarcascade_frontalface_alt2.xml";
         File face_model = new File(this.getCacheDir() + "/" + filename);
@@ -80,16 +80,15 @@ public class EyeActivity extends AppCompatActivity {
         moveModelData(med_model, filename);
         tmp = med_model.getAbsolutePath();
 
-        long startTime = System.currentTimeMillis(); //起始时间
+        long startTime = System.currentTimeMillis();
         loadMedModel(tmp);
-        long endTime = System.currentTimeMillis(); //结束时间
+        long endTime = System.currentTimeMillis();
         long runTime = endTime - startTime;
 
-        //新建文件夹
+
         File leftEye = new File("//data/data/com.example.uitest/leftEye");
         if (!leftEye.exists()) {
             try {
-                //按照指定的路径创建文件夹
                 leftEye.mkdirs();
             } catch (Exception e) {
                 // TODO: handle exception
@@ -98,29 +97,39 @@ public class EyeActivity extends AppCompatActivity {
         File rightEye = new File("//data/data/com.example.uitest/rightEye");
         if (!rightEye.exists()) {
             try {
-                //按照指定的路径创建文件夹
                 rightEye.mkdirs();
             } catch (Exception e) {
                 // TODO: handle exception
             }
         }
-        Log.i(TAG, "加载dlib模型:" + runTime + "ms");
-        Log.i(TAG, "模型载入完成");
+        Log.i(TAG, "load dlib model:" + runTime + "ms");
+        Log.i(TAG, "load successfully");
+
+        mSoundPool = new SoundPool(1, AudioManager.STREAM_SYSTEM, 5);
+        mSoundPool.load(this,R.raw.camera,1);
+    }
+
+    private void playSound(){
+        AudioManager am = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
+        float streamVolumeCurrent = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+        float streamVolumeMax = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        float volume = streamVolumeCurrent / streamVolumeMax;
+        mSoundPool.play(1,volume,volume,1,0,1);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (mCamera == null){
-            int scale = 10;  // 缩小倍率
-            saved = true;   // 是否保存
+            int scale = 10;  // Reduce the frame to increase processing speed
+            saved = true;
             saveidx = 0;
             cameraWidth = 1920;
             cameraHeight = 1080;
             viewWidth = cameraWidth / scale;
             viewHeight = cameraHeight / scale;
-            eyeWidth = 40;  // 这个是最终显示的时候单个眼睛的高
-            eyeHeigth = 80; // 这个是最终显示的时候单个眼睛的宽
+            eyeWidth = 40;  // the height of each eye photo
+            eyeHeigth = 80; // the width of each eye photo
             initCamera();
         }
     }
@@ -128,9 +137,8 @@ public class EyeActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        //flag = false;
         timer.cancel();
-        mCamera.stopPreview(); //后添的
+        mCamera.stopPreview();
     }
 
     TimerTask task = new TimerTask() {
@@ -141,22 +149,21 @@ public class EyeActivity extends AppCompatActivity {
     };
 
     private void initCamera(){
-        mCamera = Camera.open(1);   // 0是后置 1是前置
-        Camera.Parameters params = mCamera.getParameters();
-        List<Camera.Size> previewSizes = params.getSupportedPreviewSizes();
+        mCamera = Camera.open(1);   // 0 back, 1 front camera
+        Camera.Parameters parameters = mCamera.getParameters();
+        List<Camera.Size> previewSizes = parameters.getSupportedPreviewSizes();
         for(int i=0;i<previewSizes.size();i++){
-            Log.v("CAMERA_1","width:" + String.valueOf(previewSizes.get(i).width)+"\theight:" +String.valueOf(previewSizes.get(i).height));
+            Log.v("CAMERA_1","width:" + previewSizes.get(i).width +"\theight:" + previewSizes.get(i).height);
         }
         if (mCamera != null) {
             try {
                 framecount = 0;
 
-                Camera.Parameters parameters = mCamera.getParameters();
-                //设置预览照片的大小
+                //Set the size of the preview photo
                 parameters.setPreviewSize(cameraWidth, cameraHeight);
                 mCamera.setParameters(parameters);
-                previewCallBack pre = new previewCallBack();//建立预览回调对象
-                mCamera.setPreviewCallback(pre); //设置预览回调对象
+                previewCallBack pre = new previewCallBack();
+                mCamera.setPreviewCallback(pre);
                 mCamera.setPreviewTexture(surfacetexture);
                 mCamera.startPreview();
                 timer = new Timer();
@@ -173,7 +180,7 @@ public class EyeActivity extends AppCompatActivity {
         public void onPreviewFrame(byte[] data, Camera camera) {
 
             framecount = framecount + 1;
-            mframestart = System.currentTimeMillis(); //起始时间
+            mframestart = System.currentTimeMillis();
             Bitmap bmp = Bitmap.createBitmap(viewWidth,viewHeight, Bitmap.Config.ARGB_8888);
             Bitmap leftEyeBitmap = Bitmap.createBitmap(eyeWidth,eyeHeigth, Bitmap.Config.ARGB_8888);
             Bitmap rightEyeBitmap = Bitmap.createBitmap(eyeWidth,eyeHeigth, Bitmap.Config.ARGB_8888);
@@ -182,19 +189,23 @@ public class EyeActivity extends AppCompatActivity {
             int detected = decode(data, bmp, cameraHeight, cameraWidth, viewHeight, viewWidth,
                     eyeHeigth, eyeWidth, leftEyeBitmap, rightEyeBitmap, eyesshow);
             bmp = rotateBimap(EyeActivity.this, -90, bmp);
-            //eyesshow = rotateBimap(MainActivity.this, -90, eyesshow);
+            //eyesshow = rotateBimap(EyeActivity.this, -90, eyesshow);
 
-            if(detected > 0 && saved && saveidx < 18){
+            if(detected > 0 && saved && saveidx < 20){
                 if(saveidx == 0 || saveidx == 1){
                     instruction.setTextSize(30);
-                    instruction.setText("First we need to perform eye calibration");
-                }else if(saveidx == 2 || saveidx == 3){
+                    instruction.setText("First we need to perform an eye calibration");
+                }else if(saveidx == 2 || saveidx == 3) {
                     instruction.setTextSize(25);
-                    instruction.setText("Please follow the instructions and make sure that the camera can detects your entire face");
-                }else if(saveidx == 4) {
-                    instruction.setText("Please look at the center of the screen");
-                    instruction.setBackgroundColor(Color.YELLOW);
-                }else if(saveidx == 5){
+                    instruction.setText("Please follow the instructions and make sure the camera can detect your entire face");
+                }else if(saveidx == 4 || saveidx == 5){
+                    instruction.setTextSize(25);
+                    instruction.setText("Please keep the eye gesture until you hear the shutter sound");
+                    if(saveidx == 5) playSound();
+                }else if(saveidx == 6) {
+                    instruction.setText("Now please look at the center of the screen");
+                    instruction.setBackgroundColor(0xff3CB371);
+                }else if(saveidx == 7){
                     //look centre
                     leftEyeBitmap = rotateBimap(EyeActivity.this, -90, leftEyeBitmap);
                     String fileName = "//data/data/com.example.uitest/leftEye/L_centre.jpg";
@@ -204,10 +215,11 @@ public class EyeActivity extends AppCompatActivity {
                     fileName = "//data/data/com.example.uitest/rightEye/R_centre.jpg";
                     savebitmap(fileName, rightEyeBitmap);
                     Toast.makeText(EyeActivity.this, "picture saved", Toast.LENGTH_SHORT).show();
-                }else if(saveidx == 6){
+                    playSound();
+                }else if(saveidx == 8){
                     instruction.setText("Please look to the left");
-                    instruction.setBackgroundColor(Color.GREEN);
-                }else if(saveidx == 7){
+                    instruction.setBackgroundColor(0xffFFA500);
+                }else if(saveidx == 9){
                     //look left
                     leftEyeBitmap = rotateBimap(EyeActivity.this, -90, leftEyeBitmap);
                     String fileName = "//data/data/com.example.uitest/leftEye/L_left.jpg";
@@ -217,10 +229,11 @@ public class EyeActivity extends AppCompatActivity {
                     fileName = "//data/data/com.example.uitest/rightEye/R_left.jpg";
                     savebitmap(fileName, rightEyeBitmap);
                     Toast.makeText(EyeActivity.this, "picture saved", Toast.LENGTH_SHORT).show();
-                }else if(saveidx == 8){
+                    playSound();
+                }else if(saveidx == 10){
                     instruction.setText("Please look to the right");
-                    instruction.setBackgroundColor(Color.GRAY);
-                }else if(saveidx == 9){
+                    instruction.setBackgroundColor(0xff3CB371);
+                }else if(saveidx == 11){
                     //look right
                     leftEyeBitmap = rotateBimap(EyeActivity.this, -90, leftEyeBitmap);
                     String fileName = "//data/data/com.example.uitest/leftEye/L_right.jpg";
@@ -230,10 +243,11 @@ public class EyeActivity extends AppCompatActivity {
                     fileName = "//data/data/com.example.uitest/rightEye/R_right.jpg";
                     savebitmap(fileName, rightEyeBitmap);
                     Toast.makeText(EyeActivity.this, "picture saved", Toast.LENGTH_SHORT).show();
-                }else if(saveidx == 10){
+                    playSound();
+                }else if(saveidx == 12){
                     instruction.setText("Please look up");
-                    instruction.setBackgroundColor(Color.YELLOW);
-                }else if(saveidx == 11){
+                    instruction.setBackgroundColor(0xffFFA500);
+                }else if(saveidx == 13){
                     //look up
                     leftEyeBitmap = rotateBimap(EyeActivity.this, -90, leftEyeBitmap);
                     String fileName = "//data/data/com.example.uitest/leftEye/L_up.jpg";
@@ -243,10 +257,11 @@ public class EyeActivity extends AppCompatActivity {
                     fileName = "//data/data/com.example.uitest/rightEye/R_up.jpg";
                     savebitmap(fileName, rightEyeBitmap);
                     Toast.makeText(EyeActivity.this, "picture saved", Toast.LENGTH_SHORT).show();
-                }else if(saveidx == 12){
+                    playSound();
+                }else if(saveidx == 14){
                     instruction.setText("Please look down");
-                    instruction.setBackgroundColor(Color.GRAY);
-                }else if(saveidx == 13){
+                    instruction.setBackgroundColor(0xff3CB371);
+                }else if(saveidx == 15){
                     //look down
                     leftEyeBitmap = rotateBimap(EyeActivity.this, -90, leftEyeBitmap);
                     String fileName = "//data/data/com.example.uitest/leftEye/L_down.jpg";
@@ -256,10 +271,11 @@ public class EyeActivity extends AppCompatActivity {
                     fileName = "//data/data/com.example.uitest/rightEye/R_down.jpg";
                     savebitmap(fileName, rightEyeBitmap);
                     Toast.makeText(EyeActivity.this, "picture saved", Toast.LENGTH_SHORT).show();
-                }else if(saveidx == 14) {
-                    instruction.setText("Please close your eyes for one minute");
-                    instruction.setBackgroundColor(Color.WHITE);
-                }else if(saveidx == 15){
+                    playSound();
+                }else if(saveidx == 16) {
+                    instruction.setText("Please close your eyes until you hear the shutter sound");
+                    instruction.setBackgroundColor(0xffFFA500);
+                }else if(saveidx == 17){
                     //eye close
                     leftEyeBitmap = rotateBimap(EyeActivity.this, -90, leftEyeBitmap);
                     String fileName = "//data/data/com.example.uitest/leftEye/L_close.jpg";
@@ -268,27 +284,26 @@ public class EyeActivity extends AppCompatActivity {
                     rightEyeBitmap = rotateBimap(EyeActivity.this, -90, rightEyeBitmap);
                     fileName = "//data/data/com.example.uitest/rightEye/R_close.jpg";
                     savebitmap(fileName, rightEyeBitmap);
-                    //播放音效
                     Toast.makeText(EyeActivity.this, "picture saved", Toast.LENGTH_SHORT).show();
-                }else if(saveidx == 16){
+                    playSound();
+                }else if(saveidx == 18){
                     instruction.setText("Now you can play the game!");
                     instruction.setBackgroundColor(Color.WHITE);
-                }else if(saveidx == 17){
+                }else if(saveidx == 19){
                     timer.cancel();
                     saved = false;
-                    Intent intent = new Intent(EyeActivity.this, RunActivity.class);
+                    Intent intent = new Intent(EyeActivity.this, ShowTemplates.class);
                     startActivity(intent);
                 }
                 saveidx++;
                 saved = false;
             }
 
-            if(saveidx >= 18){
+            if(saveidx >= 20){
                 timer.cancel();
             }
             mImageView.setImageBitmap(bmp);
-            //mEyeView.setImageBitmap(eyesshow);
-            mframeend = System.currentTimeMillis(); //起始时间
+            mframeend = System.currentTimeMillis();
             mframetime = mframeend - mframestart;
             String show = "average fps:" + 1000 / mframetime;
             //mTextView.setText(show);
@@ -339,17 +354,10 @@ public class EyeActivity extends AppCompatActivity {
      * A native method that is implemented by the 'native-lib' native library,
      * which is packaged with this application.
      */
-    public native String stringFromJNI();
     public native int decode(byte[] yuv, Object bitmap, int ch, int cw, int vh, int vw,
                              int eh, int ew, Object leftEye, Object rightEye, Object Eye);
     public native void loadFaceModel(String file_path);
     public native void loadMedModel(String fileName);
-
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
-    //public native String stringFromJNI();
 
 
 }

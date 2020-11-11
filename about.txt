@@ -1,4 +1,0 @@
-This is an android implementation of a popular 2048 game. However, the users need to use eye-gaze and tilt interaction in order to play it.
-This project was developed within the scope of HCI Project by Sicheng Sun.
-
-Supervisors: Dr. Zhanna Sarsenbayeva and Dr. Tilman Dingler.

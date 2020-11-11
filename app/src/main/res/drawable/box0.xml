@@ -3,14 +3,12 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
 
-    <!-- Set màu nền-->
-<!--    #123-->
+    <!-- Set background color-->
     <solid
         android:color="#123">
     </solid>
 
-    <!-- 设置边框的颜色和宽度属性 -->
-    <!-- 这是四个角处的圆的半径 -->
+    <!-- the radius of the circle at the four corners -->
     <corners
         android:radius="4dp" >
     </corners>

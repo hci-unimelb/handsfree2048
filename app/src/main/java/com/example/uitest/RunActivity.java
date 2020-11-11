@@ -12,8 +12,8 @@ import android.media.SoundPool;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.MotionEvent;
-import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.ScaleAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -34,65 +34,67 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
+/**
+ * @Description This activity moves the numbered tiles according to the result of eye gesture recognition
+ * @reference Part of the 2048 game code comes from https://www.youtube.com/watch?v=6ojV--thA5c, which will be specified in the code.
+ */
+
 public class RunActivity extends AppCompatActivity {
 
     private String TAG = "RunActivity";
 
-    //测试用
-    private float mse_centre;
-    private float mse_close;
-    private float mse_down;
-    private float mse_up;
-    private float mse_left;
-    private float mse_right;
+    //test
+    private float mse_centre, mse_close, mse_down, mse_up, mse_left, mse_right;
 
     //Templates
-    private ImageView centreView;
-    private ImageView closeView;
-    private ImageView leftView;
-    private ImageView rightView;
-    private ImageView upView;
-    private ImageView downView;
+    private ImageView centreView, closeView, leftView, rightView, upView, downView;
 
-    private Bitmap bitmapCentre;
-    private Bitmap bitmapClose;
-    private Bitmap bitmapLeft;
-    private Bitmap bitmapRight;
-    private Bitmap bitmapUp;
-    private Bitmap bitmapDown;
+    private Bitmap bitmapL_Centre, bitmapL_Close;
+    private Bitmap bitmapL_Left, bitmapL_Right;
+    private Bitmap bitmapL_Up, bitmapL_Down;
 
+    private Bitmap bitmapR_Centre, bitmapR_Close;
+    private Bitmap bitmapR_Left, bitmapR_Right;
+    private Bitmap bitmapR_Up, bitmapR_Down;
+
+    private FileInputStream inputStream;
+    private String prefix =  "//data/data/com.example.uitest/";
     private TextView infoView;
     private TextView statusView;
+    private TextView promptView;
 
-    //样本的pixel数组
-    private int[] temCen = new int[3200];
-    private int[] temClose = new int[3200];
-    private int[] temLeft = new int[3200];
-    private int[] temRight = new int[3200];
-    private int[] temUp = new int[3200];
-    private int[] temDown = new int[3200];
+    //pixel array of templates
+    private int[] temL_Cen = new int[3200];
+    private int[] temL_Close = new int[3200];
+    private int[] temL_Left = new int[3200];
+    private int[] temL_Right = new int[3200];
+    private int[] temL_Up = new int[3200];
+    private int[] temL_Down = new int[3200];
+
+    private int[] temR_Cen = new int[3200];
+    private int[] temR_Close = new int[3200];
+    private int[] temR_Left = new int[3200];
+    private int[] temR_Right = new int[3200];
+    private int[] temR_Up = new int[3200];
+    private int[] temR_Down = new int[3200];
+
 
     private long mframestart, mframeend, mframetime;
     private long framecount;
     private Camera mCamera;
 
-    private boolean saved;
-    private int saveidx;
-
-    private ImageView mImageView, mEyeView;
-    private TextView mTextView;
+    private ImageView mImageView;
     private SurfaceTexture surfacetexture;
 
-    private int viewWidth, viewHeight;//mSurfaceView的宽和高
+    private int viewWidth, viewHeight;
     private int eyeWidth, eyeHeigth;
     private int cameraWidth, cameraHeight;
-    Timer timer;
 
     //play sound
     private SoundPool mSoundPool = null;
     private HashMap<Integer, Integer> soundID = new HashMap<>();
 
-    //游戏变量
+    //game variables
     private ImageView box11, box12, box13, box14;
     private ImageView box21, box22, box23, box24;
     private ImageView box31, box32, box33, box34;
@@ -103,17 +105,13 @@ public class RunActivity extends AppCompatActivity {
     private TextView text31, text32, text33, text34;
     private TextView text41, text42, text43, text44;
     private LinearLayout layout;
-    private int scores = 0;
-    Button retreat, reset;
     private int matrix[][], saveMatrix[][];
-    private TextView score, best_score;
-    private Database database;
+    private EyeDatabase database;
 
-    private int left_n = 0;
-    private int right_n = 0;
-    private int up_n = 0;
-    private int down_n = 0;
-    private int centre_n = 0;
+    private int random_i;
+    private int random_j;
+
+    private int left_n, right_n, up_n, down_n, centre_n, back_n, retreat_n = 0;
 
     // Used to load the 'native-lib' library on application startup.
     static {
@@ -130,22 +128,11 @@ public class RunActivity extends AppCompatActivity {
 
         surfacetexture = new SurfaceTexture(10);
         mImageView = (ImageView)findViewById(R.id.camera_view2);
-        //mEyeView = (ImageView)findViewById(R.id.eye_view2);
-        //mTextView = (TextView)findViewById(R.id.textView2);
 
-        //展示存储的图片
-//        centreView = (ImageView) findViewById(R.id.centre_view);
-//        closeView = (ImageView) findViewById(R.id.close_view);
-//        leftView = (ImageView) findViewById(R.id.left_view);
-//        rightView = (ImageView) findViewById(R.id.right_view);
-//        upView = (ImageView) findViewById(R.id.up_view);
-//        downView = (ImageView) findViewById(R.id.down_view);
-
-        //展示长宽信息
-        //infoView = (TextView)findViewById(R.id.info);
-
-        //展示状态信息
-        //statusView = (TextView)findViewById(R.id.status_view);
+        statusView = (TextView)findViewById(R.id.status_view);
+        promptView = (TextView)findViewById(R.id.prompt);
+        promptView.setText("Tips: return to the homepage by winking your left eye" + "\n"
+                           + "retreat one step by winking your right eye");
 
         String filename = "haarcascade_frontalface_alt2.xml";
         File face_model = new File(this.getCacheDir() + "/" + filename);
@@ -157,15 +144,14 @@ public class RunActivity extends AppCompatActivity {
         File med_model = new File(this.getCacheDir() + "/" + filename);
         moveModelData(med_model, filename);
         tmp = med_model.getAbsolutePath();
-        long startTime = System.currentTimeMillis(); //起始时间
+        long startTime = System.currentTimeMillis();
         loadMedModel(tmp);
-        long endTime = System.currentTimeMillis(); //结束时间
+        long endTime = System.currentTimeMillis();
         long runTime = endTime - startTime;
 
         File leftEye = new File("//data/data/com.example.uitest/leftEye");
         if (!leftEye.exists()) {
             try {
-                //按照指定的路径创建文件夹
                 leftEye.mkdirs();
             } catch (Exception e) {
                 // TODO: handle exception
@@ -174,74 +160,61 @@ public class RunActivity extends AppCompatActivity {
         File rightEye = new File("//data/data/com.example.uitest/rightEye");
         if (!rightEye.exists()) {
             try {
-                //按照指定的路径创建文件夹
                 rightEye.mkdirs();
             } catch (Exception e) {
                 // TODO: handle exception
             }
         }
-        Log.i(TAG, "加载dlib模型:" + runTime + "ms");
-        Log.i(TAG, "模型载入完成");
+//        Log.i(TAG, "load dlib model:" + runTime + "ms");
+//        Log.i(TAG, "Model loading completed");
 
-        //读取图片
-        loadTemplates();
+        //load the templates
+        try {
+            loadTemplates();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
 
         initView();
-        newGame();   //默认新游戏
+        newGame();
         //keepPlay();
 
         initSoundPool();
     }
 
     private void initSoundPool(){
-        mSoundPool = new SoundPool(4, AudioManager.STREAM_SYSTEM,5);
+        mSoundPool = new SoundPool(6, AudioManager.STREAM_SYSTEM,5);
         soundID.put(1,mSoundPool.load(this, R.raw.left,1));
         soundID.put(2,mSoundPool.load(this, R.raw.right,1));
         soundID.put(3,mSoundPool.load(this, R.raw.up,1));
         soundID.put(4,mSoundPool.load(this, R.raw.down,1));
+        soundID.put(5,mSoundPool.load(this, R.raw.retreat,1));
+        soundID.put(6,mSoundPool.load(this, R.raw.retreatonce, 1));
     }
 
     private void playSound(int soundId){
         AudioManager am = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
-        float streamVolumeCurrent = am.getStreamVolume(AudioManager.STREAM_MUSIC);  //根据媒体音量调节
+        float streamVolumeCurrent = am.getStreamVolume(AudioManager.STREAM_MUSIC);  //adjust the sound level
         float streamVolumeMax = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         float volume = streamVolumeCurrent / streamVolumeMax;
         mSoundPool.play(soundID.get(soundId),volume,volume,1,0,1);
     }
 
-    private void loadTemplates(){
+    private void loadTemplates() throws FileNotFoundException {
 
-//        String left = "//data/data/com.example.uitest/leftEye/left_5.jpg";
-//        String right = "//data/data/com.example.uitest/leftEye/left_7.jpg";
-//        String up = "//data/data/com.example.uitest/leftEye/left_9.jpg";
-//        String down = "//data/data/com.example.uitest/leftEye/left_11.jpg";
+        bitmapL_Centre = load("leftEye/L_centre.jpg");
+        bitmapL_Left = load("leftEye/L_left.jpg");
+        bitmapL_Right = load("leftEye/L_right.jpg");
+        bitmapL_Up = load("leftEye/L_up.jpg");
+        bitmapL_Down = load("leftEye/L_down.jpg");
+        bitmapL_Close = load("leftEye/L_close.jpg");
 
-        String centre = "//data/data/com.example.uitest/leftEye/L_centre.jpg";
-        String close = "//data/data/com.example.uitest/leftEye/L_close.jpg";
-        String left = "//data/data/com.example.uitest/leftEye/L_left.jpg";
-        String right = "//data/data/com.example.uitest/leftEye/L_right.jpg";
-        String up = "//data/data/com.example.uitest/leftEye/L_up.jpg";
-        String down = "//data/data/com.example.uitest/leftEye/L_down.jpg";
-
-        try {
-            FileInputStream inputStream0 = new FileInputStream(centre);
-            FileInputStream inputStream1 = new FileInputStream(close);
-            FileInputStream inputStream2 = new FileInputStream(left);
-            FileInputStream inputStream3 = new FileInputStream(right);
-            FileInputStream inputStream4 = new FileInputStream(up);
-            FileInputStream inputStream5 = new FileInputStream(down);
-
-            bitmapCentre = BitmapFactory.decodeStream(inputStream0);
-            bitmapClose = BitmapFactory.decodeStream(inputStream1);
-            bitmapLeft = BitmapFactory.decodeStream(inputStream2);
-            bitmapRight = BitmapFactory.decodeStream(inputStream3);
-            bitmapUp = BitmapFactory.decodeStream(inputStream4);
-            bitmapDown = BitmapFactory.decodeStream(inputStream5);
-
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            Log.e(TAG,"file not found");
-        }
+        bitmapR_Centre = load("rightEye/R_centre.jpg");
+        bitmapR_Left = load("rightEye/R_left.jpg");
+        bitmapR_Right = load("rightEye/R_right.jpg");
+        bitmapR_Up = load("rightEye/R_up.jpg");
+        bitmapR_Down = load("rightEye/R_down.jpg");
+        bitmapR_Close = load("rightEye/R_close.jpg");
 
 //        centreView.setImageBitmap(bitmapCentre);
 //        closeView.setImageBitmap(bitmapClose);
@@ -250,33 +223,41 @@ public class RunActivity extends AppCompatActivity {
 //        upView.setImageBitmap(bitmapUp);
 //        downView.setImageBitmap(bitmapDown);
 
-        normalize(bitmapCentre, temCen);
-        normalize(bitmapClose, temClose);
-        normalize(bitmapLeft, temLeft);
-        normalize(bitmapRight, temRight);
-        normalize(bitmapUp, temUp);
-        normalize(bitmapDown, temDown);
+        //normalize the templates
+        normalize(bitmapL_Centre, temL_Cen);
+        normalize(bitmapL_Close, temL_Close);
+        normalize(bitmapL_Left, temL_Left);
+        normalize(bitmapL_Right, temL_Right);
+        normalize(bitmapL_Up, temL_Up);
+        normalize(bitmapL_Down, temL_Down);
 
-        int width = bitmapUp.getWidth();
-        int height = bitmapUp.getHeight();
-        //textView.setText("width =  " + width + " height =  "+ height);
-        //textView.setText("temLeft[25] =  " + temLeft[25]);
+        normalize(bitmapR_Centre, temR_Cen);
+        normalize(bitmapR_Close, temR_Close);
+        normalize(bitmapR_Left, temR_Left);
+        normalize(bitmapR_Right, temR_Right);
+        normalize(bitmapR_Up, temR_Up);
+        normalize(bitmapR_Down, temR_Down);
 
+    }
+
+    private Bitmap load(String fileName) throws FileNotFoundException {
+        String str = prefix + fileName;
+        inputStream = new FileInputStream(str);
+        Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+        return bitmap;
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (mCamera == null){
-            int scale = 10;  // 缩小倍率
-            saved = true;   // 是否保存
-            saveidx = 0;
+            int scale = 10;  //Reduce the frame to increase processing speed
             cameraWidth = 1920;
             cameraHeight = 1080;
             viewWidth = cameraWidth / scale;
             viewHeight = cameraHeight / scale;
-            eyeWidth = 40;  // 这个是最终显示的时候单个眼睛的高
-            eyeHeigth = 80; // 这个是最终显示的时候单个眼睛的宽
+            eyeWidth = 40;
+            eyeHeigth = 80;
             initCamera();
         }
     }
@@ -284,8 +265,9 @@ public class RunActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        timer.cancel();
         saveProcess();
+        mSoundPool.release();
+        mSoundPool = null;
     }
 
     @Override
@@ -295,46 +277,37 @@ public class RunActivity extends AppCompatActivity {
         mSoundPool = null;
     }
 
+    /*
+    the start of the copied code from the url
+     */
     public void saveProcess() {
-        database = new Database(this);
+        database = new EyeDatabase(this);
         database.setProcess(matrix);
-        if (Integer.valueOf(database.getBestScore2048(this)) < scores) {
-            database.setBestScore2048(scores);
-        }
-        database.setDiemHT2048(scores);
         database.close();
     }
 
     public void keepPlay() {
-        database = new Database(this);
-        best_score.setText(database.getBestScore2048(this));
-        scores = Integer.valueOf(database.getDiemHT2048(this));
-        matrix = database.getQuatrinh(this);
+        database = new EyeDatabase(this);
+        matrix = database.getProcess(this);
         database.close();
         setSaveMatrix();
         setBox();
     }
 
     public void newGame() {
-        database = new Database(this);
-        if (Integer.valueOf(database.getBestScore2048(this)) < scores) {
-            database.setBestScore2048(scores);
-        }
-        //best_score.setText(database.getBestScore2048(this));
+        database = new EyeDatabase(this);
         database.close();
-        scores = 0;
         for (int i = 0; i < 25; i++) matrix[i / 5][i % 5] = 0;
-        randomNumber();   //最开始初始化两个数字
+        randomNumber();   // generate 2 numbers at first
         randomNumber();
         setSaveMatrix();
         setBox();
     }
 
-    void initView() {
+    public void initView() {
         matrix = new int[5][5];
         saveMatrix = new int[5][5];
-        //score = (TextView) findViewById(R.id.score);
-        //best_score = (TextView) findViewById(R.id.best_score);
+
         layout = (LinearLayout) findViewById(R.id.board);
 
         box11 = (ImageView) findViewById(R.id.box11);
@@ -357,7 +330,7 @@ public class RunActivity extends AppCompatActivity {
         box43 = (ImageView) findViewById(R.id.box43);
         box44 = (ImageView) findViewById(R.id.box44);
 
-        //数字
+        //number
         text11 = (TextView) findViewById(R.id.text11);
         text12 = (TextView) findViewById(R.id.text12);
         text13 = (TextView) findViewById(R.id.text13);
@@ -378,13 +351,10 @@ public class RunActivity extends AppCompatActivity {
         text43 = (TextView) findViewById(R.id.text43);
         text44 = (TextView) findViewById(R.id.text44);
 
-        //retreat = (Button) findViewById(R.id.retreat);
-        //reset = (Button) findViewById(R.id.reset);
     }
 
     public void setBox() {
-        //score.setText(String.valueOf(scores));
-        //把每个数字快的背景改为对应颜色
+
         box11.setImageResource(getBackground(matrix[1][1]));
         box12.setImageResource(getBackground(matrix[1][2]));
         box13.setImageResource(getBackground(matrix[1][3]));
@@ -412,7 +382,6 @@ public class RunActivity extends AppCompatActivity {
         }
 
         setSizetext();
-        //text显示对应的数字(String)
         text11.setText(matrixS[1][1]);
         text12.setText(matrixS[1][2]);
         text13.setText(matrixS[1][3]);
@@ -431,9 +400,7 @@ public class RunActivity extends AppCompatActivity {
         text44.setText(matrixS[4][4]);
     }
 
-    /*
-修正数字的大小，超过512变为25dp
- */
+
     public void setSizetext() {
         if (matrix[1][1] <= 512) text11.setTextSize(35);
         else text11.setTextSize(25);
@@ -475,33 +442,14 @@ public class RunActivity extends AppCompatActivity {
     }
 
     /*
-    给每个字块附上对应的颜色
+    Attach the corresponding color to each block
      */
     public int getBackground(int n) {
         if (n == 0) return R.drawable.box0;
         switch (n % 2048) {
-            case 2:
-                return R.drawable.box2;
-            case 4:
-                return R.drawable.box4;
-            case 8:
-                return R.drawable.box8;
-//            case 16:
-//                return R.drawable.box16;
-//            case 32:
-//                return R.drawable.box2;
-//            case 64:
-//                return R.drawable.box4;
-//            case 128:
-//                return R.drawable.box8;
-//            case 256:
-//                return R.drawable.box16;
-//            case 512:
-//                return R.drawable.box2;
-//            case 1024:
-//                return R.drawable.box4;
-//            case 0:
-//                return R.drawable.box2048;
+            case 2: return R.drawable.box2;
+            case 4: return R.drawable.box4;
+            case 8: return R.drawable.box8;
             case 16: return R.drawable.box16;
             case 32: return R.drawable.box32;
             case 64: return R.drawable.box64;
@@ -514,34 +462,33 @@ public class RunActivity extends AppCompatActivity {
         return 0;
     }
 
-    TimerTask task = new TimerTask() {
-        @Override
-        public void run() {
-            saved = true;
-        }
-    };
+    public void setSaveMatrix() {
+        for (int i = 1; i < 25; i++)
+            saveMatrix[i / 5][i % 5] = matrix[i / 5][i % 5];
+    }
+    //the end of the copied code
+
 
     private void initCamera(){
-        mCamera = Camera.open(1);   // 0是后置 1是前置
+        mCamera = Camera.open(1);   // 0 back 1 front
         Camera.Parameters params = mCamera.getParameters();
         List<Camera.Size> previewSizes = params.getSupportedPreviewSizes();
         for(int i=0;i<previewSizes.size();i++){
-            Log.v("CAMERA_1","width:" + String.valueOf(previewSizes.get(i).width)+"\theight:" +String.valueOf(previewSizes.get(i).height));
+            Log.v("CAMERA_1","width:" + previewSizes.get(i).width +"\theight:" + previewSizes.get(i).height);
         }
         if (mCamera != null) {
             try {
                 framecount = 0;
 
                 Camera.Parameters parameters = mCamera.getParameters();
-                //设置预览照片的大小
+                //Set the size of the preview photo
                 parameters.setPreviewSize(cameraWidth, cameraHeight);
                 mCamera.setParameters(parameters);
-                previewCallBack pre = new previewCallBack();//建立预览回调对象
-                mCamera.setPreviewCallback(pre); //设置预览回调对象
+                previewCallBack pre = new previewCallBack();
+                mCamera.setPreviewCallback(pre);
                 mCamera.setPreviewTexture(surfacetexture);
                 mCamera.startPreview();
-                timer = new Timer();
-                timer.schedule(task,0,2000);
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -549,76 +496,132 @@ public class RunActivity extends AppCompatActivity {
     }
 
     /*
-generate a random number
- */
+    The original code obtained from the url was modified to generate animation for each new numbered tile
+     */
     public void randomNumber() {
         Random random = new Random();
         while (true) {
-            int i = random.nextInt(4) + 1, j = random.nextInt(4) + 1;    //i,j为[1,5)内任意的值
-            if (matrix[i][j] == 0) {
-                if (random.nextInt(11) < 10) //[0,11)内产生随机数，只有1/10的可能为10
-                    matrix[i][j] = 2;
-                else matrix[i][j] = 4;   //随机数≥10时生成新的随机数为4
+            random_i = random.nextInt(4) + 1;
+            random_j = random.nextInt(4) + 1;
+            if (matrix[random_i][random_j] == 0) {
+                if (random.nextInt(11) < 10)
+                    matrix[random_i][random_j] = 2;
+                else matrix[random_i][random_j] = 4;
                 break;
             }
         }
+
+        switch (random_i){
+            case 1:
+                switch (random_j){
+                    case 1: setAppearAnim(box11); break;
+                    case 2: setAppearAnim(box12); break;
+                    case 3: setAppearAnim(box13); break;
+                    case 4: setAppearAnim(box14); break;
+                }
+                break;
+            case 2:
+                switch (random_j){
+                    case 1: setAppearAnim(box21); break;
+                    case 2: setAppearAnim(box22); break;
+                    case 3: setAppearAnim(box23); break;
+                    case 4: setAppearAnim(box24); break;
+                }
+                break;
+            case 3:
+                switch (random_j){
+                    case 1: setAppearAnim(box31); break;
+                    case 2: setAppearAnim(box32); break;
+                    case 3: setAppearAnim(box33); break;
+                    case 4: setAppearAnim(box34); break;
+                }
+                break;
+            case 4:
+                switch (random_j){
+                    case 1: setAppearAnim(box41); break;
+                    case 2: setAppearAnim(box42); break;
+                    case 3: setAppearAnim(box43); break;
+                    case 4: setAppearAnim(box44); break;
+                }
+                break;
+            default: break;
+        }
     }
 
-    public void setSaveMatrix() {
+    public void setAppearAnim(ImageView imageView){
+        ScaleAnimation scaleAnimation = new ScaleAnimation(
+                0.1f,1,0.1f,1,
+                Animation.RELATIVE_TO_SELF,0.5f,
+                Animation.RELATIVE_TO_SELF, 0.5f);
+        scaleAnimation.setDuration(120);
+        imageView.setAnimation(null);
+        imageView.startAnimation(scaleAnimation);
+    }
+
+    /*
+    The original code obtained from the url was modified to provide sound prompts
+     */
+    public void retreat() {
+        boolean check = true;
+        for (int i = 1; i < 25; i++) {
+            if (matrix[i / 5][i % 5] != saveMatrix[i / 5][i % 5]) {
+                check = false;
+                break;
+            }
+        }
+        if (check == true) {
+            Toast toast = Toast.makeText(this, "you can only retreat once", Toast.LENGTH_SHORT);
+            toast.setGravity(Gravity.CENTER,0,0);
+            toast.show();
+            playSound(6);
+            return;
+        }
+
+        playSound(5);
+
         for (int i = 1; i < 25; i++)
-            saveMatrix[i / 5][i % 5] = matrix[i / 5][i % 5];
+            matrix[i / 5][i % 5] = saveMatrix[i / 5][i % 5];
+        setBox();
     }
 
+    /*
+    The original code obtained from the url was modified to comply with the game rules I designed
+     */
     public void gameOver() {
         for (int i = 1; i < 5; i++)
             for (int j = 1; j < 5; j++)
                 if (matrix[i][j] == 0)
                     return;
-        boolean check = false;
+        String check = "game over";
         for (int i = 1; i < 5; i++) {
             for (int j = 1; j < 4; j++) {
-                if (matrix[i][j] == matrix[i][j + 1]) check = true;
-                if (matrix[j][i] == matrix[j + 1][i]) check = true;
+                if (matrix[i][j] == matrix[i][j + 1]) check = "ok";
+                if (matrix[j][i] == matrix[j + 1][i]) check = "ok";
             }
         }
-        if (check == false) {
-//            final Dialog dialog = new Dialog(this);
-//            dialog.setCancelable(false);
-//            dialog.setContentView(R.layout.game_over);
-//            dialog.show();
-//            final Button menu = (Button) dialog.findViewById(R.id.menu);
-//            Button Again = (Button) dialog.findViewById(R.id.Again) ;
-//            TextView diemso = (TextView) dialog.findViewById(R.id.diemso);
-//            TextView diemcao = (TextView) dialog.findViewById(R.id.diemcao);
-//            diemso.setText("New "+String.valueOf(scores));
 
-//            Database  database;
-//            database = new Database(this);
-//            if(Integer.valueOf(database.getBestScore2048(this)) < scores){
-//                database.setBestScore2048(scores);
-//            }
-//            database.close();
+        for (int i = 1; i < 5; i++){
+            for (int j = 1; j < 5; j++){
+                if (matrix[i][j] == 2048) {
+                    check = "win";
+                    break;
+                }
+            }
+        }
 
-//            database = new Database(this);
-//            diemcao.setText("Best "+database.getDiemcao2048(this));
-//            database.close();
-//            menu.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View v) {
-//                    startActivity(new Intent(Play2048.this, MainActivity.class));
-//                }
-//            });
-//            Again.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View v) {
-//                    khoitao();
-//                    dialog.cancel();
-//                }
-//            });
-            //Toast.makeText(TiltActivity.this, "Game Over", Toast.LENGTH_LONG).show();
-
+        if (check.equals("game over")) {
             Toast toast = Toast.makeText(getApplicationContext(), "Game Over", Toast.LENGTH_LONG);
             toast.setGravity(Gravity.CENTER,0,0);
+            LinearLayout layout = (LinearLayout) toast.getView();
+            TextView tv = (TextView) layout.getChildAt(0);
+            tv.setTextSize(30);
+            toast.show();
+            newGame();
+        }
+
+        if (check.equals("win")) {
+            Toast toast = Toast.makeText(getApplicationContext(), "You win!", Toast.LENGTH_LONG);
+            toast.setGravity(Gravity.CENTER, 0, 0);
             LinearLayout layout = (LinearLayout) toast.getView();
             TextView tv = (TextView) layout.getChildAt(0);
             tv.setTextSize(30);
@@ -631,16 +634,16 @@ generate a random number
 
         @Override
         public void onPreviewFrame(byte[] data, Camera camera) {
-            //新添的
             boolean check = false;
-            setSaveMatrix();
+//            setSaveMatrix();
 
-            float a = 0.0f;
-            float b = 0.0f;
-            int[] compareImg = new int[3200];
-            String str = null;
+            int[] compareL_Img = new int[3200];
+            int[] compareR_Img = new int[3200];
+            String L_str = null;
+            String R_str = null;
+
             framecount = framecount + 1;
-            mframestart = System.currentTimeMillis(); //起始时间
+            mframestart = System.currentTimeMillis();
             Bitmap bmp = Bitmap.createBitmap(viewWidth,viewHeight, Bitmap.Config.ARGB_8888);
             Bitmap leftEyeBitmap = Bitmap.createBitmap(eyeWidth,eyeHeigth, Bitmap.Config.ARGB_8888);
             Bitmap rightEyeBitmap = Bitmap.createBitmap(eyeWidth,eyeHeigth, Bitmap.Config.ARGB_8888);
@@ -652,72 +655,55 @@ generate a random number
             eyesshow = rotateBimap(RunActivity.this, -90, eyesshow);
             if(detected > 0){
                 leftEyeBitmap = rotateBimap(RunActivity.this, -90, leftEyeBitmap);
-                normalize(leftEyeBitmap, compareImg);
-                str = compare(compareImg);
-            }
-//            if(detected > 0 && saved && saveidx < 5){
-//                leftEyeBitmap = rotateBimap(RunActivity.this, -90, leftEyeBitmap);
-//                int width = normalize(leftEyeBitmap);
-//                //statusView.setText(saveidx);
-//                saveidx++;
-//                saved = false;
-//            }
+                rightEyeBitmap = rotateBimap(RunActivity.this, -90, rightEyeBitmap);
+                normalize(leftEyeBitmap, compareL_Img);
+                normalize(rightEyeBitmap, compareR_Img);
 
-//            if(detected > 0 && saved && saveidx < 5){
-//                leftEyeBitmap = rotateBimap(RunActivity.this, -90, leftEyeBitmap);
-//                String fileName = "//data/data/com.example.uitest/leftEye/m_" + saveidx + ".jpg";
-//                savebitmap(fileName, leftEyeBitmap);
-//
-//                rightEyeBitmap = rotateBimap(RunActivity.this, -90, rightEyeBitmap);
-//                fileName = "//data/data/com.example.uitest/rightEye/n_" + saveidx + ".jpg";
-//                savebitmap(fileName, rightEyeBitmap);
-//                saveidx++;
-//                saved = false;
-//            }
-
-            if(saveidx >= 100){
-                timer.cancel();
+                L_str = leftCompare(compareL_Img);
+                R_str = rightCompare(compareR_Img);
             }
+
+
             mImageView.setImageBitmap(bmp);
             //mEyeView.setImageBitmap(eyesshow);
             //mEyeView.setImageBitmap(leftEyeBitmap);
-            mframeend = System.currentTimeMillis(); //起始时间
+            mframeend = System.currentTimeMillis();
             mframetime = mframeend - mframestart;
             //String show = "average fps:" + 1000 / mframetime;
 //            mTextView.setText(show);
             //mTextView.setText("centre: "+ mse_centre +"  left: "+ mse_left + "  right: " + mse_right + "\n"
 //                              + "up: "+ mse_up + "  down: "+ mse_down);
 
-            //statusView.setText("result: " + str);
-            //根据判断结果改变方块
+            //statusView.setText("mse[5]"+ mse_down+"\n"+"result: " + R_str);
+            //statusView.setText("str right eye" +"\n" + "R_centre: " + R_centre + "\n" + "R_close: " + R_close);
 
-            //str可能是null，look left等
-            if(str == "look left") {
-                //左滑
+            //Determine the direction of the eyes
+            if(L_str == "look left" && R_str == "look left") {
                 left_n++;
                 if (left_n == 4) {
                     Toast toast = Toast.makeText(RunActivity.this, "left", Toast.LENGTH_SHORT);
                     toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();
-                    left_n++;
+                   // left_n++;
                     //right_n = up_n = down_n = 0;
-                    centre_n = 0;
+                    down_n = 6; centre_n = 0;
+                    setSaveMatrix();
                     leftFunc(check);
                     playSound(1);
                 }
                 //statusView.setText("result: " + str);
                 //infoView.setText("left " + left_n);
             }
-            else if(str == "look right"){
-                //右滑
+            else if(L_str == "look right" && R_str == "look right"){
                 right_n++;
                 if (right_n == 4) {
                     Toast toast = Toast.makeText(RunActivity.this, "right", Toast.LENGTH_SHORT);
                     toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();
-                    right_n++;
+                    //right_n++;
                     //left_n = up_n = down_n = 0;
-                    centre_n = 0;
+                    down_n = 6; centre_n = 0;
+                    setSaveMatrix();
                     rightFunc(check);
                     playSound(2);
                 }
@@ -725,53 +711,76 @@ generate a random number
                 //infoView.setText("right " + right_n);
 
             }
-            else if(str == "look up"){
-                //上滑
+            else if(L_str == "look up" && R_str == "look up"){
                 up_n++;
                 if (up_n == 4){
                     Toast toast = Toast.makeText(RunActivity.this, "up", Toast.LENGTH_SHORT);
                     toast.setGravity(Gravity.CENTER,0,0);
                     toast.show();
-                    up_n++;
                     //left_n = right_n = down_n = 0;
-                    centre_n = 0;
+                    down_n = 6; centre_n = 0;
+                    setSaveMatrix();
                     upFunc(check);
                     playSound(3);
                 }
                 //statusView.setText("result: " + str);
                 //infoView.setText("up "+ up_n);
             }
-            else if(str == "look down"){
-                //下滑
+            else if(L_str == "look down" ){ //&& R_str == "look down"
                 down_n++;
-                if (down_n == 5){ //超过眨眼时间
+                if (down_n == 5){
                     Toast toast = Toast.makeText(RunActivity.this, "down", Toast.LENGTH_SHORT);
                     toast.setGravity(Gravity.CENTER,0,0);
                     toast.show();
-                    down_n++;
+                    //down_n++;
                     //left_n = right_n = up_n =0;
                     centre_n = 0;
+                    setSaveMatrix();
                     downFunc(check);
                     playSound(4);
                 }
                 //statusView.setText("result: " + str);
                 //infoView.setText("down "+ down_n);
             }
-            else if(str == "look centre"){
+            else if(L_str == "look centre" && R_str == "look centre"){
                 centre_n++;
-                if(centre_n >= 4){
-                    left_n = right_n = up_n = down_n = 0;
+                if(centre_n >= 5){
+                    left_n = right_n = up_n = down_n = back_n = retreat_n = 0;
                 }
+                //statusView.setText("centre");
                 //statusView.setText("result: " + str);
-            }else if(str == "close") {
-                down_n = 0;
+            }else if(L_str == "close" && R_str == "close") {
+                down_n = 6;
+                //centre_n = 0;
                 //statusView.setText("result: " + str);
-            }else{  //null
-                //statusView.setText("result: " + str);
+            }else if(L_str == "close" && R_str != "close"){
+                back_n++;
+                if(back_n == 5){
+                    Toast toast = Toast.makeText(RunActivity.this, "back to homepage", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER,0,0);
+                    toast.show();
+                    down_n = centre_n = 0;
+                    Intent intent = new Intent(RunActivity.this, StartActivity.class);
+                    startActivity(intent);
+//                    finish();
+                }
+            }else if(L_str != "close" && R_str == "close"){
+                retreat_n++;
+                if(retreat_n == 5){
+                    Toast toast = Toast.makeText(RunActivity.this, "retreat", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER,0,0);
+                    toast.show();
+                    retreat();
+                    down_n = centre_n = 0;
+                }
+
             }
         }
     }
 
+    /*
+    The leftFunc, rightFunc, upFunc and downFunc come from the url, and they were combined with eye gesture recognition
+     */
     public void leftFunc(boolean check){
         for(int i=1;i<5;i++){
             for(int j=1;j<4;j++)
@@ -784,7 +793,6 @@ generate a random number
                         {
                             check = true;
                             matrix[i][j] += matrix[i][k];
-                            scores += matrix[i][j];
                             matrix[i][k] = 0;
                             j=k;
                             break;
@@ -824,7 +832,6 @@ generate a random number
                         if (matrix[i][k] == matrix[i][j]) {
                             check = true;
                             matrix[i][j] += matrix[i][k];
-                            scores += matrix[i][j];
                             matrix[i][k] = 0;
                             j = k;
                             break;
@@ -859,7 +866,6 @@ generate a random number
                         if (matrix[k][i] == matrix[j][i]) {
                             check = true;
                             matrix[j][i] += matrix[k][i];
-                            scores += matrix[j][i];
                             matrix[k][i] = 0;
                             j = k;
                             break;
@@ -895,7 +901,6 @@ generate a random number
                         if (matrix[k][i] == matrix[j][i]) {
                             check = true;
                             matrix[j][i] += matrix[k][i];
-                            scores += matrix[j][i];
                             matrix[k][i] = 0;
                             j = k;
                             break;
@@ -923,10 +928,9 @@ generate a random number
         setBox();
     }
 
-        public void normalize(Bitmap img, int[] pixels) {
+    public void normalize(Bitmap img, int[] pixels) {
         int width = img.getWidth();
         int height = img.getHeight();
-//        int[] pixels = new int[width * height];
         img.getPixels(pixels, 0, width, 0, 0, width, height);
 
         int sumPixel = 0;
@@ -938,7 +942,6 @@ generate a random number
         for (int x=0; x<width*height; x++){
             pixels[x] = pixels[x] - avgPixel;
         }
-
     }
 
     public float mse(int[] pixels_a, int[] pixels_com){
@@ -955,16 +958,58 @@ generate a random number
         return mse;
     }
 
-    public String compare(int[] compareImg){
+    public String leftCompare(int[] compareImg){
         String str;
         float[] mse = new float[6];
 
-        mse[0] = mse(temCen, compareImg);
-        mse[1] = mse(temClose, compareImg);
-        mse[2] = mse(temLeft, compareImg);
-        mse[3] = mse(temRight, compareImg);
-        mse[4] = mse(temUp, compareImg);
-        mse[5] = mse(temDown, compareImg);
+        mse[0] = mse(temL_Cen, compareImg);
+        mse[1] = mse(temL_Close, compareImg);
+        mse[2] = mse(temL_Left, compareImg);
+        mse[3] = mse(temL_Right, compareImg);
+        mse[4] = mse(temL_Up, compareImg);
+        mse[5] = mse(temL_Down, compareImg);
+
+        mse_centre = mse[0];
+        mse_close = mse[1];
+        mse_left = mse[2];
+        mse_right = mse[3];
+        mse_up = mse[4];
+        mse_down = mse[5];
+
+        int index = 0;
+        for(int i = 1; i<mse.length; i++){
+            if(mse[i] < mse[index]){
+                index = i;
+            }
+        }
+
+        if(index == 1) {
+            str = "close";
+        }else if(index == 2){
+            str = "look left";
+        }else if(index == 3){
+            str = "look right";
+        }else if(index == 4){
+            str = "look up";
+        }else if(index == 5){
+            str = "look down";
+        }else{
+            str = "look centre";
+        }
+
+        return str;
+    }
+
+    public String rightCompare(int[] compareImg){
+        String str;
+        float[] mse = new float[6];
+
+        mse[0] = mse(temR_Cen, compareImg);
+        mse[1] = mse(temR_Close, compareImg);
+        mse[2] = mse(temR_Left, compareImg);
+        mse[3] = mse(temR_Right, compareImg);
+        mse[4] = mse(temR_Up, compareImg);
+        mse[5] = mse(temR_Down, compareImg);
 
         mse_centre = mse[0];
         mse_close = mse[1];
@@ -1007,21 +1052,6 @@ generate a random number
         return bitmap;
     }
 
-    public void savebitmap(String filename, Bitmap bmp){
-        File file = new File(filename);
-        if(file.exists() || file.isDirectory()){
-            file.delete();
-        }
-        //file.createNewFile();
-        FileOutputStream outputStream = null;
-        try {
-            outputStream = new FileOutputStream(file);
-            bmp.compress(Bitmap.CompressFormat.JPEG,100,outputStream);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
     public void moveModelData(File file, String filename){
 
         if (!file.exists())
@@ -1044,7 +1074,6 @@ generate a random number
      * A native method that is implemented by the 'native-lib' native library,
      * which is packaged with this application.
      */
-    public native String stringFromJNI();
     public native int decode(byte[] yuv, Object bitmap, int ch, int cw, int vh, int vw,
                              int eh, int ew, Object leftEye, Object rightEye, Object Eye);
     public native void loadFaceModel(String file_path);

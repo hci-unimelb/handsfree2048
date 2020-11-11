@@ -82,7 +82,7 @@ void getShowEye(Mat src, cv::Rect left, cv::Rect right, int eh, int ew, Mat &dst
     cvtColor(src, HSV, COLOR_BGR2HSV);
     std::vector<Mat> hsv;
     split(HSV, hsv);
-    Mat v = hsv.at(2);  // 显示V通道
+    Mat v = hsv.at(2);  //keep v channel
     leftEye = v(left);
     rightEye = v(right);
     resize(leftEye, leftEye, Size(eh, ew));
@@ -122,36 +122,36 @@ JNICALL Java_com_example_uitest_RunActivity_decode(
         jint ch, jint cw, jint vh, jint vw,
         jint eh, jint ew,jobject outLeftEye, jobject outRightEye, jobject outEye) {
     jbyte * yuvBuf = (jbyte*)env->GetByteArrayElements(yuv, 0);
-    // 输出的摄像图像
+
     void* facePixels = 0;
     CV_Assert(AndroidBitmap_lockPixels(env, bitmap, &facePixels) >= 0);
     Mat faceBitmap(vh, vw, CV_8UC4, facePixels);
 
-    // 左眼
+    // left eye
     void* leftEyePixels = 0;
     CV_Assert(AndroidBitmap_lockPixels(env, outLeftEye, &leftEyePixels) >= 0);
     Mat leftEyeBitmap(eh, ew, CV_8UC4, leftEyePixels);
 
-    // 右眼
+    // right eye
     void* rightEyePixels = 0;
     CV_Assert(AndroidBitmap_lockPixels(env, outRightEye, &rightEyePixels) >= 0);
     Mat rightEyeBitmap(eh, ew, CV_8UC4, rightEyePixels);
 
-    // 双眼
+    // both eyes
     void* eyePixels = 0;
     CV_Assert(AndroidBitmap_lockPixels(env, outEye, &eyePixels) >= 0);
     Mat eyeBitmap(eh * 2, ew, CV_8UC4, eyePixels);
 
 
-    Mat image(ch + ch/2,cw,CV_8UC1,(unsigned char *)yuvBuf);	//注意这里是height+height/2
+    Mat image(ch + ch/2,cw,CV_8UC1,(unsigned char *)yuvBuf);	//height+height/2
     Mat BGR, src;
     cvtColor(image, BGR, COLOR_YUV2BGRA_NV21);
     cvtColor(BGR, BGR, COLOR_BGRA2BGR);
-    flip(BGR, BGR, 1); // CV中的翻转
+    flip(BGR, BGR, 1);
     flip(BGR, BGR, 0);
-    transpose(BGR, BGR); // 转置
-    BGR.copyTo(src);  // src是原图
-    resize(BGR, BGR, Size(vh, vw));  // 这里vh与vw分别对应输出 的bitmap的height与width属性
+    transpose(BGR, BGR);
+    BGR.copyTo(src);
+    resize(BGR, BGR, Size(vh, vw));  //vh and vw correspond to the height and width of the output bitma
 
     Mat HSV;
     std::vector<Mat> hsv;
@@ -178,17 +178,17 @@ JNICALL Java_com_example_uitest_RunActivity_decode(
         }
 
         cv::Rect _left, _right;
-        getEyeRect(landmarks, 36, 42, _left, BGR, BGR);// 左眼区域
-        getEyeRect(landmarks, 42, 48, _right, BGR, BGR);// 右眼区域
+        getEyeRect(landmarks, 36, 42, _left, BGR, BGR);  //left eye
+        getEyeRect(landmarks, 42, 48, _right, BGR, BGR);  //right eye
 
         getShowEye(BGR, _left, _right, eh, ew, eyeBitmap);
 
         cv::Rect leftRect;
-        getEyeRect(landmarks, 36, 42, leftRect, BGR, src);// 左眼区域
+        getEyeRect(landmarks, 36, 42, leftRect, BGR, src);  //left eye
         getEye(V, leftRect, eh, ew, leftEyeBitmap);
 
         cv::Rect rightRect;
-        getEyeRect(landmarks, 42, 48, rightRect, BGR, src);// 右眼区域
+        getEyeRect(landmarks, 42, 48, rightRect, BGR, src); //right eye
         getEye(V, rightRect, eh, ew, rightEyeBitmap);
     }
 

@@ -6,33 +6,41 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:weightSum="7"
     tools:context=".EyeActivity">
 
     <TextView
         android:id="@+id/instruction_view"
         android:layout_width="match_parent"
-        android:layout_marginTop="40dp"
-        android:layout_height="150dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginBottom="20dp"
         android:layout_marginLeft="20dp"
         android:layout_marginRight="20dp"
         android:gravity="center"
+        android:layout_weight="2"
         android:text="Calibration"
-        android:textSize="35dp" />
+        android:textColor="#000000"
+        android:textSize="35sp" />
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="match_parent"
-        android:layout_height="35dp"
-        android:layout_below="@+id/instruction_view"
-        android:text="" />
+<!--    <TextView-->
+<!--        android:id="@+id/textView"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="35dp"-->
+<!--        android:text="" />-->
 
-    <ImageView
-        android:id="@+id/camera_view"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="500dp"
-        android:layout_below="@+id/textView"
-        android:layout_alignParentEnd="true"
-        android:layout_marginTop="0dp"
-        android:layout_marginEnd="0dp" />
+        android:layout_height="0dp"
+
+        android:layout_weight="5">
+
+        <ImageView
+            android:id="@+id/camera_view"
+            android:layout_width="match_parent"
+            android:layout_height="350dp" />
+
+    </LinearLayout>
+
 
 </LinearLayout>
