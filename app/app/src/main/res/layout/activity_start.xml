@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFEBCD"
+    android:orientation="vertical"
+    tools:context=".StartActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:weightSum="5"
+        android:layout_weight="1">
+
+        <TextView
+        android:id="@+id/game_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="15dp"
+        android:layout_weight="2"
+        android:text="Hands-free"
+        android:textSize="60sp"
+        android:textColor="#1C1C1C"
+        android:textStyle="bold"
+        android:gravity="center"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_weight="1"
+            android:text="2048"
+            android:textSize="70sp"
+            android:textColor="#1C1C1C"
+            android:textStyle="bold"
+            android:gravity="center_horizontal"/>
+
+        <TextView
+            android:id="@+id/prompt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:paddingLeft="30dp"
+            android:paddingRight="30dp"
+            android:text="Tilt your phone to choose a way you want to play the game!"
+            android:textColor="#1C1C1C"
+            android:textSize="22sp" />
+
+<!--        <TextView-->
+<!--            android:id="@+id/debug"-->
+<!--            android:layout_weight="1"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content" />-->
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingLeft="30dp"
+        android:paddingRight="30dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tilt Left"
+                android:textSize="30sp"
+                android:textColor="#1C1C1C"
+                android:gravity="center"/>
+
+            <ImageView
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/phone"
+                android:layout_marginTop="10dp" />
+
+            <Button
+                android:id="@+id/tilt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginRight="5dp"
+                android:background="#ffa726"
+                android:gravity="center"
+                android:text="Tilt the phone mode"
+                android:textAllCaps="false"
+                android:textColor="#1C1C1C"
+                android:textSize="20sp" />
+
+            <!--            <TextView-->
+<!--                android:id="@+id/debug"-->
+<!--                android:layout_marginTop="10dp"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:textSize="25sp"-->
+<!--                android:gravity="center"-->
+<!--                android:text="Tilt the phone mode"-->
+<!--                android:textColor="#1C1C1C"-->
+<!--                android:paddingTop="15dp"/>-->
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tilt Right"
+                android:textSize="30sp"
+                android:textColor="#1C1C1C"
+                android:gravity="center"/>
+
+            <ImageView
+                android:layout_width="140dp"
+                android:layout_height="140dp"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/eye"
+                android:layout_marginTop="10dp"/>
+
+            <Button
+                android:id="@+id/eye_tracking"
+                android:layout_marginTop="20dp"
+                android:layout_marginLeft="5dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Eye-tracking mode"
+                android:textSize="20sp"
+                android:textAllCaps="false"
+                android:background="#ffa726"
+                android:textColor="#1C1C1C"
+                android:gravity="center" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
