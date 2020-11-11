@@ -1,3 +1,0 @@
-E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/arm64-v8a/dlib_build/cpp11_test_build/CMakeFiles/rebuild_cache.dir
-E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/arm64-v8a/dlib_build/cpp11_test_build/CMakeFiles/cpp11_test.dir
-E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/arm64-v8a/dlib_build/cpp11_test_build/CMakeFiles/edit_cache.dir

@@ -5,8 +5,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.media.Image;
 import android.os.Bundle;
+import android.os.Handler;
+import android.provider.ContactsContract;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -20,77 +22,41 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.prefs.BackingStoreException;
+
+/**
+ * @Description This activity moves the numbered tiles according to the result of tilt gesture recognition
+ * @reference Part of the 2048 game code comes from https://www.youtube.com/watch?v=6ojV--thA5c, which will be specified in the code.
+ */
 
 public class TiltActivity extends AppCompatActivity {
 
+    private final static String TAG = "TiltActivity";
     private ImageView box11, box12, box13, box14;
     private ImageView box21, box22, box23, box24;
     private ImageView box31, box32, box33, box34;
     private ImageView box41, box42, box43, box44;
-    Intent context;
+
     private TextView text11, text12, text13, text14;
     private TextView text21, text22, text23, text24;
     private TextView text31, text32, text33, text34;
     private TextView text41, text42, text43, text44;
     private LinearLayout layout;
-    private int scores = 0;
-    Button retreat, reset;
-    private int matrix[][], saveMatrix[][];
-    private TextView score, best_score;
-    private Database database;
 
-    //新添
+    Button back, retreat;
+    private int matrix[][], saveMatrix[][];
+    private TiltDatabase database;
+
     private Orientation orientation;
     private int count = 0;
-    private float AZ;
-    private float AX;
-    private float AY;
-    private TextView translationView;
+    private float AZ, AX, AY;
     private TextView rotationView;
     private TextView statusView;
-    private String status = "Origin";
-    private int left_n = 0;
-    private int right_n = 0;
-    private int up_n = 0;
-    private int down_n = 0;
+    private int left_n, right_n, up_n, down_n, back_n, retreat_n, origin_n = 0;
 
     private int random_i;
     private int random_j;
 
-
-    //如果按了页面的返回键
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_BACK) {
-            saveProcess();
-            Intent startMain = new Intent(TiltActivity.this, StartActivity.class);
-            startMain.addCategory(Intent.CATEGORY_HOME);
-            startActivity(startMain);
-            finish();
-//            try {
-//                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//                builder.setMessage("Do you want to leave the game?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-//                    public void onClick(DialogInterface dialog, int id) {
-//                        saveProcess();
-//                        Intent startMain = new Intent(TiltActivity.this, StartActivity.class);
-//                        startMain.addCategory(Intent.CATEGORY_HOME);
-//                        startActivity(startMain);
-//                        finish();
-//                    }
-//                })
-//                        .setNegativeButton("No", new DialogInterface.OnClickListener() {
-//                            public void onClick(DialogInterface dialog, int id) {
-//
-//                            }
-//                        }).show();
-//            } catch (Exception e) {
-//                return true;
-//            }
-        }
-        return super.onKeyDown(keyCode, event);
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,111 +64,188 @@ public class TiltActivity extends AppCompatActivity {
         this.requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_tilt);
         initView();
-        context = getIntent();
 
-        //接收起始界面的信息，决定是开始新游戏还是存档
-//        try {
-//            if (context.getIntExtra("playgame", 0) == 2) keepPlay();
-//            else newGame();
-//        } catch (Exception e) {
-//            newGame();
-//        }
-        newGame();
-        //keepPlay();
+        //newGame();
+        keepPlay();
 
-        retreat.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                retreat();
-            }
-        });
-        reset.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                resetGame();
-            }
-        });
+        Toast toast = Toast.makeText(getApplicationContext(), "In tilt mode, you can control the numbered tiles by tilting your phone.", Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.CENTER, 0, 0);
+        LinearLayout layout = (LinearLayout) toast.getView();
+        TextView tv = (TextView) layout.getChildAt(0);
+        tv.setTextSize(20);
+        toast.show();
 
+        final Toast toast1 = Toast.makeText(getApplicationContext(), "Remember to return to the original position after each move.", Toast.LENGTH_LONG);
+        toast1.setGravity(Gravity.CENTER, 0, 0);
+        LinearLayout layout1 = (LinearLayout) toast1.getView();
+        TextView tv1 = (TextView) layout1.getChildAt(0);
+        tv1.setTextSize(20);
+
+        showToast(toast1,4500);
+
+        final Toast toast2 = Toast.makeText(getApplicationContext(), "Now please hold your phone, the game will record your initial position", Toast.LENGTH_LONG);
+        toast2.setGravity(Gravity.CENTER, 0, 0);
+        LinearLayout layout2 = (LinearLayout) toast2.getView();
+        TextView tv2 = (TextView) layout2.getChildAt(0);
+        tv2.setTextSize(20);
+
+        showToast(toast2,9000);
+
+
+        final Toast toast3 = Toast.makeText(getApplicationContext(), "Now you can play the game!", Toast.LENGTH_SHORT);
+        toast3.setGravity(Gravity.CENTER, 0, 0);
+        LinearLayout layout3 = (LinearLayout) toast3.getView();
+        TextView tv3 = (TextView) layout3.getChildAt(0);
+        tv3.setTextSize(20);
+
+        showToast(toast3,13000);
 
         orientation = new Orientation(this);
-        translationView = (TextView) this.findViewById(R.id.translationView);
-        rotationView = (TextView) this.findViewById(R.id.rotationView);
+//        rotationView = (TextView) findViewById(R.id.prompt);
         statusView = (TextView) findViewById(R.id.status);
+        statusView.setText(" ");
+
+        Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                direction();
+            }
+        },13000);
+    }
+    
+
+    public void showToast(final Toast toast, int milliseconds){
+        Handler handler = new Handler();
+        handler.postDelayed(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                toast.show();
+            }
+        },milliseconds);
+    }
+
+    public void direction() {
 
         orientation.setListener(new Orientation.Listener() {
 
             @Override
             public void onTranslation(float az, float ax, float ay) {
                 boolean check = false;
-                setSaveMatrix();
+                float az_diff = az-AZ;
+                float ax_diff = ax-AX;
+                float ay_diff = ay-AY;
+                if (az_diff > 300.0f) az_diff = az_diff - 360;
+                if (az_diff < -300.0f) az_diff = az_diff + 360;
 
                 count++;
-                if(count == 4) {
+                if (count == 1) {
                     AZ = az;
                     AX = ax;
                     AY = ay;
                 }
-                if(count > 20){
+                if (count > 80) {
                     count = 8;
                 }
 
-                //translationView.setText("Translation: " + "\n" + "Around_z= " + az + "\n" + "Around_x= " + ax +"\n" + "Around_y= " + ay);
-
-                //rotationView.setText("AZ  " + AZ + "\n" + "AX  " + AX + "\n" + "AY  " + AY + "\n" + "ax-AX " + (ax-AX) + "\n" + "ay-AY" + (ay-AY) );
-                //status.setText("Translation: " + "\n" + "Around_z= " + az + "\n" + "Around_x= " + ax +"\n" + "Around_y= " + ay);
-                if (ay-AY > 15.0f){
-                    if (left_n == 0){
-                        status = "left";
-                        left_n++;
-                        //right_n = up_n = down_n = 0;
-                        statusView.setText(status);
+//                rotationView.setText("origin " + origin_n + "  left "+ left_n+"  retreat"+retreat_n + "\n" +" AZ  " + AZ + "  " + "AX  " + AX + "  " + "AY  " + AY + "\n" +
+//                        "az  " + az + "\n" + "ax  " + ax + "\n" + "ay  " + ay + "\n" + "az_diff  "
+//                        + az_diff + "\n" +"ax_diff  " + ax_diff + "\n" + "ay_diff  " + ay_diff);
+                if ( az_diff < -25.0f ){ //az_diff > -40.0f && b
+                    back_n++;
+                    if (back_n == 8){
+                        origin_n = 0;
+                        back.setBackgroundColor(0xfff57c00);
+                        statusView.setText("back");
+                        Intent intent = new Intent(TiltActivity.this, StartActivity.class);
+                        startActivity(intent);
+                    }
+                    if (back_n > 8)
+                        statusView.setText("back");
+                }
+                else if ( az_diff > 25.0f ){ //&& az_diff < 40.0f && b
+                    retreat_n++;
+                    if (retreat_n == 8){
+                        retreat.setBackgroundColor(0xfff57c00);
+                        retreat();
+                        right_n = back_n = origin_n = 0;
+                        statusView.setText("retreat");
+                    }
+                    if (retreat_n > 8)
+                        statusView.setText("retreat");
+                }
+                else if ( ay_diff < -20.0f ) { //&& az_diff > -10.0f
+                    left_n++;
+                    if (left_n == 3){
+                        setSaveMatrix();
                         leftFunc(check);
-                    }else{
-                        status = "left";
-                        statusView.setText(status);
+                        //right_n = up_n = down_n = 0;
+                        back_n = retreat_n = origin_n = 0;
+                        statusView.setText("left");
                     }
-                }else if(ay-AY < -13.0f){
-                    if (right_n == 0){
-                        status = "right";
-                        right_n++;
-                        //left_n = up_n = down_n = 0;
-                        statusView.setText(status);
+                    if (left_n > 3)
+                        statusView.setText("left");
+                }
+                else if ( ay_diff > 20.0f ) {  //&& az_diff < 10.0f
+                    right_n++;
+                    if (right_n == 3) {
+                        setSaveMatrix();
                         rightFunc(check);
-                    }else{
-                        status = "right";
-                        statusView.setText(status);
+                        //left_n = up_n = down_n = 0;
+                        back_n = retreat_n = origin_n = 0;
+                        statusView.setText("right");
                     }
-                }else if(ax-AX > 13.0f){
-                    if (up_n == 0){
-                        status = "up";
-                        up_n++;
+                    if (right_n > 3)
+                        statusView.setText("right");
+                }
+                else if (ax_diff > 20.0f) {
+                    up_n++;
+                    if (up_n == 3){
+                        setSaveMatrix();
                         //left_n = right_n = down_n = 0;
-                        statusView.setText(status);
+                        back_n = retreat_n = origin_n = 0;
                         upFunc(check);
-                    }else{
-                        status = "up";
-                        statusView.setText(status);
+                        statusView.setText("up");
                     }
-                }else if((ax-AX > -25.0f) && (ax-AX < -6.0f)){
-                    if(down_n == 0){
-                        status = "down";
-                        down_n++;
+                    if (up_n > 3)
+                        statusView.setText("up");
+                }
+                else if (ax_diff < -16.0f) {  //(ax_diff > -45.0f)
+                    down_n++;
+                    if (down_n == 3) {
+                        setSaveMatrix();
                         //left_n = right_n = up_n = 0;
-                        statusView.setText(status);
+                        back_n = retreat_n = origin_n = 0;
                         downFunc(check);
-                    }else{
-                        status = "down";
-                        statusView.setText(status);
+                        statusView.setText("down");
                     }
+                    if (down_n > 3 )
+                        statusView.setText("down");
                 }else{
-                    status = "Origin";
-                    statusView.setText(status);
-                    left_n = right_n = up_n = down_n = 0;
+                    origin_n++;
+                    if (origin_n > 4)
+                        left_n = right_n = up_n = down_n = back_n = retreat_n = 0;
+
+                    if( Math.abs(az_diff) < 10.0f && Math.abs(ax_diff) < 7.0f && Math.abs(ay_diff) < 7.0f) {
+                        if (origin_n % 20 == 0) {    //Calibration, there will be an offset in the process of playing
+                            AZ = az;
+                            AX = ax;
+                            AY = ay;
+                        }
+                    }
+                    statusView.setText("origin");
+                    back.setBackgroundColor(0xffffa726);
+                    retreat.setBackgroundColor(0xffffa726);
                 }
             }
         });
     }
 
+    /*
+    The leftFunc, rightFunc, upFunc and downFunc come from the url, and they were combined with tilt gesture recognition
+     */
     public void leftFunc(boolean check){
         for(int i=1;i<5;i++){
             for(int j=1;j<4;j++)
@@ -215,7 +258,6 @@ public class TiltActivity extends AppCompatActivity {
                         {
                             check = true;
                             matrix[i][j]+=matrix[i][k];
-                            scores+=matrix[i][j];
                             matrix[i][k]=0;j=k;break;
                         }else if(matrix[i][k]!=0) break;
                     }
@@ -252,7 +294,6 @@ public class TiltActivity extends AppCompatActivity {
                         if (matrix[i][k] == matrix[i][j]) {
                             check = true;
                             matrix[i][j] += matrix[i][k];
-                            scores += matrix[i][j];
                             matrix[i][k] = 0;
                             j = k;
                             break;
@@ -287,7 +328,6 @@ public class TiltActivity extends AppCompatActivity {
                         if (matrix[k][i] == matrix[j][i]) {
                             check = true;
                             matrix[j][i] += matrix[k][i];
-                            scores += matrix[j][i];
                             matrix[k][i] = 0;
                             j = k;
                             break;
@@ -323,7 +363,6 @@ public class TiltActivity extends AppCompatActivity {
                         if (matrix[k][i] == matrix[j][i]) {
                             check = true;
                             matrix[j][i] += matrix[k][i];
-                            scores += matrix[j][i];
                             matrix[k][i] = 0;
                             j = k;
                             break;
@@ -360,7 +399,6 @@ public class TiltActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        //saveProcess();    //后添的
         orientation.unregister();
     }
 
@@ -371,28 +409,13 @@ public class TiltActivity extends AppCompatActivity {
         orientation.unregister();
     }
 
+    /*
+    the start of the copied code from the url
+     */
     public void saveProcess() {
-        database = new Database(this);
+        database = new TiltDatabase(this);
         database.setProcess(matrix);
-        if (Integer.valueOf(database.getBestScore2048(this)) < scores) {
-            database.setBestScore2048(scores);
-        }
-        database.setDiemHT2048(scores);
         database.close();
-    }
-
-    public void resetGame() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setMessage("Do you want to play again?").setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int id) {
-                newGame();
-            }
-        })
-                .setNegativeButton("No", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-
-                    }
-                }).show();
     }
 
     public void retreat() {
@@ -404,46 +427,47 @@ public class TiltActivity extends AppCompatActivity {
             }
         }
         if (check == true) {
-            Toast.makeText(this, "No retreat", Toast.LENGTH_SHORT).show();
+            Toast toast = Toast.makeText(this, "you can only retreat once", Toast.LENGTH_SHORT);
+            toast.setGravity(Gravity.CENTER,0,0);
+            toast.show();
             return;
         }
+
         for (int i = 1; i < 25; i++)
             matrix[i / 5][i % 5] = saveMatrix[i / 5][i % 5];
         setBox();
     }
 
     public void keepPlay() {
-        database = new Database(this);
-        best_score.setText(database.getBestScore2048(this));
-        scores = Integer.valueOf(database.getDiemHT2048(this));
-        matrix = database.getQuatrinh(this);
+        database = new TiltDatabase(this);
+        matrix = database.getProcess(this);
         database.close();
         setSaveMatrix();
         setBox();
     }
 
     public void newGame() {
-        database = new Database(this);
-        if (Integer.valueOf(database.getBestScore2048(this)) < scores) {
-            database.setBestScore2048(scores);
-        }
-        best_score.setText(database.getBestScore2048(this));
+        database = new TiltDatabase(this);
         database.close();
-        scores = 0;
         for (int i = 0; i < 25; i++) matrix[i / 5][i % 5] = 0;
-        randomNumber();   //最开始初始化两个数字
+        randomNumber();   //initialize two random numbers at begin
         randomNumber();
         setSaveMatrix();
         setBox();
     }
 
-    void initView() {
+    public void setSaveMatrix() {
+        for (int i = 1; i < 25; i++)
+            saveMatrix[i / 5][i % 5] = matrix[i / 5][i % 5];
+    }
+
+    public void initView() {
         matrix = new int[5][5];
         saveMatrix = new int[5][5];
-        score = (TextView) findViewById(R.id.score);
-        best_score = (TextView) findViewById(R.id.best_score);
+
         layout = (LinearLayout) findViewById(R.id.board);
 
+        //block background
         box11 = (ImageView) findViewById(R.id.box11);
         box12 = (ImageView) findViewById(R.id.box12);
         box13 = (ImageView) findViewById(R.id.box13);
@@ -464,7 +488,7 @@ public class TiltActivity extends AppCompatActivity {
         box43 = (ImageView) findViewById(R.id.box43);
         box44 = (ImageView) findViewById(R.id.box44);
 
-        //数字
+        //block number
         text11 = (TextView) findViewById(R.id.text11);
         text12 = (TextView) findViewById(R.id.text12);
         text13 = (TextView) findViewById(R.id.text13);
@@ -485,13 +509,15 @@ public class TiltActivity extends AppCompatActivity {
         text43 = (TextView) findViewById(R.id.text43);
         text44 = (TextView) findViewById(R.id.text44);
 
+        back = (Button) findViewById(R.id.back);
         retreat = (Button) findViewById(R.id.retreat);
-        reset = (Button) findViewById(R.id.reset);
+        back.setClickable(false);
+        retreat.setClickable(false);
+
     }
 
     public void setBox() {
-        score.setText(String.valueOf(scores));
-        //把每个数字快的背景改为对应颜色
+
         box11.setImageResource(getBackground(matrix[1][1]));
         box12.setImageResource(getBackground(matrix[1][2]));
         box13.setImageResource(getBackground(matrix[1][3]));
@@ -514,12 +540,11 @@ public class TiltActivity extends AppCompatActivity {
 
         String matrixS[][] = new String[5][5];
         for (int i = 0; i < 25; i++) {
-            if (matrix[i / 5][i % 5] == 0) matrixS[i / 5][i % 5] = "";   //数组的0行为空
+            if (matrix[i / 5][i % 5] == 0) matrixS[i / 5][i % 5] = "";
             else matrixS[i / 5][i % 5] = String.valueOf(matrix[i / 5][i % 5]);
         }
 
         setSizetext();
-        //text显示对应的数字(String)
         text11.setText(matrixS[1][1]);
         text12.setText(matrixS[1][2]);
         text13.setText(matrixS[1][3]);
@@ -539,7 +564,7 @@ public class TiltActivity extends AppCompatActivity {
     }
 
     /*
-    修正数字的大小，超过512变为25dp
+    number exceeds 512 and becomes 25dp
      */
     public void setSizetext() {
         if (matrix[1][1] <= 512) text11.setTextSize(35);
@@ -582,33 +607,14 @@ public class TiltActivity extends AppCompatActivity {
     }
 
     /*
-    给每个字块附上对应的颜色
+    Attach the corresponding color to each block
      */
     public int getBackground(int n) {
         if (n == 0) return R.drawable.box0;
         switch (n % 2048) {
-            case 2:
-                return R.drawable.box2;
-            case 4:
-                return R.drawable.box4;
-            case 8:
-                return R.drawable.box8;
-//            case 16:
-//                return R.drawable.box16;
-//            case 32:
-//                return R.drawable.box2;
-//            case 64:
-//                return R.drawable.box4;
-//            case 128:
-//                return R.drawable.box8;
-//            case 256:
-//                return R.drawable.box16;
-//            case 512:
-//                return R.drawable.box2;
-//            case 1024:
-//                return R.drawable.box4;
-//            case 0:
-//                return R.drawable.box2048;
+            case 2: return R.drawable.box2;
+            case 4: return R.drawable.box4;
+            case 8: return R.drawable.box8;
             case 16: return R.drawable.box16;
             case 32: return R.drawable.box32;
             case 64: return R.drawable.box64;
@@ -620,20 +626,20 @@ public class TiltActivity extends AppCompatActivity {
         }
         return 0;
     }
-
+    //the end of the copied code
 
     /*
-    generate a random number
+    The original code obtained from the url was modified to generate animation for each new numbered tile
      */
     public void randomNumber() {
         Random random = new Random();
         while (true) {
             random_i= random.nextInt(4) + 1;
-            random_j = random.nextInt(4) + 1;    //i,j为[1,5)内任意的值
+            random_j = random.nextInt(4) + 1;
             if (matrix[random_i][random_j] == 0) {
-                if (random.nextInt(11) < 10) //[0,11)内产生随机数，只有1/10的可能为10
+                if (random.nextInt(11) < 10)
                      matrix[random_i][random_j] = 2;
-                else matrix[random_i][random_j] = 4;   //随机数≥10时生成新的随机数为4
+                else matrix[random_i][random_j] = 4;
                 break;
             }
         }
@@ -674,7 +680,7 @@ public class TiltActivity extends AppCompatActivity {
         }
     }
 
-    private void setAppearAnim(ImageView imageView){
+    public void setAppearAnim(ImageView imageView){
         ScaleAnimation scaleAnimation = new ScaleAnimation(
                 0.1f,1,0.1f,1,
                 Animation.RELATIVE_TO_SELF,0.5f,
@@ -684,69 +690,55 @@ public class TiltActivity extends AppCompatActivity {
         imageView.startAnimation(scaleAnimation);
     }
 
-    public void setSaveMatrix() {
-        for (int i = 1; i < 25; i++)
-            saveMatrix[i / 5][i % 5] = matrix[i / 5][i % 5];
-    }
-
+    /*
+    The original code obtained from the url was modified to comply with the game rules I designed
+     */
     public void gameOver() {
         for (int i = 1; i < 5; i++)
             for (int j = 1; j < 5; j++)
                 if (matrix[i][j] == 0)
                     return;
-        boolean check = false;
+
+        String check = "game over";
         for (int i = 1; i < 5; i++) {
             for (int j = 1; j < 4; j++) {
-                if (matrix[i][j] == matrix[i][j + 1]) check = true;
-                if (matrix[j][i] == matrix[j + 1][i]) check = true;
+                if (matrix[i][j] == matrix[i][j + 1]) check = "ok";
+                if (matrix[j][i] == matrix[j + 1][i]) check = "ok";
             }
         }
-        if (check == false) {
-//            final Dialog dialog = new Dialog(this);
-//            dialog.setCancelable(false);
-//            dialog.setContentView(R.layout.game_over);
-//            dialog.show();
-//            final Button menu = (Button) dialog.findViewById(R.id.menu);
-//            Button Again = (Button) dialog.findViewById(R.id.Again) ;
-//            TextView diemso = (TextView) dialog.findViewById(R.id.diemso);
-//            TextView diemcao = (TextView) dialog.findViewById(R.id.diemcao);
-//            diemso.setText("New "+String.valueOf(scores));
 
-//            Database  database;
-//            database = new Database(this);
-//            if(Integer.valueOf(database.getBestScore2048(this)) < scores){
-//                database.setBestScore2048(scores);
-//            }
-//            database.close();
+        for (int i = 1; i < 5; i++){
+            for (int j = 1; j < 5; j++){
+                if (matrix[i][j] == 2048) {
+                    check = "win";
+                    break;
+                }
+            }
+        }
 
-//            database = new Database(this);
-//            diemcao.setText("Best "+database.getDiemcao2048(this));
-//            database.close();
-//            menu.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View v) {
-//                    startActivity(new Intent(Play2048.this, MainActivity.class));
-//                }
-//            });
-//            Again.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View v) {
-//                    khoitao();
-//                    dialog.cancel();
-//                }
-//            });
-             //Toast.makeText(TiltActivity.this, "Game Over", Toast.LENGTH_LONG).show();
+        if (check.equals("win")){
+            Toast toast = Toast.makeText(getApplicationContext(), "You win!", Toast.LENGTH_LONG);
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            LinearLayout layout = (LinearLayout) toast.getView();
+            TextView tv = (TextView) layout.getChildAt(0);
+            tv.setTextSize(30);
+            toast.show();
+            newGame();
+        }
 
+        if (check.equals("game over")) {
             Toast toast = Toast.makeText(getApplicationContext(), "Game Over", Toast.LENGTH_LONG);
-            toast.setGravity(Gravity.CENTER,0,0);
+            toast.setGravity(Gravity.CENTER, 0, 0);
             LinearLayout layout = (LinearLayout) toast.getView();
             TextView tv = (TextView) layout.getChildAt(0);
             tv.setTextSize(30);
             toast.show();
             newGame();
 
-
         }
     }
+
 }
+
+
 

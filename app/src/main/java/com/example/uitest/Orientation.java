@@ -8,7 +8,7 @@ import android.hardware.SensorManager;
 
 public class Orientation {
     public interface Listener{
-        void onTranslation(float tx, float ty, float tz);
+        void onTranslation(float tz, float tx, float ty);
     }
 
     private Listener listener;
@@ -18,38 +18,52 @@ public class Orientation {
     }
 
     private SensorManager sensorManager;
-    private Sensor sensor;
+    private Sensor accelerometer;
+    private Sensor magneticField;
     private SensorEventListener sensorEventListener;
+    private final float[] accelerometerReading = new float[3];
+    private final float[] magnetometerReading = new float[3];
+
+    private final float[] rotationMatrix = new float[9];
+    private final float[] orientationAngles = new float[3];
+
 
     Orientation(Context context){
         sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
-        //sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        magneticField = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         sensorEventListener = new SensorEventListener() {
             @Override
-            public void onSensorChanged(SensorEvent sensorEvent) {
-                if(listener != null)
-                {
-                    listener.onTranslation(sensorEvent.values[0],             //values[0]绕z轴角度
-                            sensorEvent.values[1], sensorEvent.values[2]);    //values[1]绕x轴角度，values[2]绕y轴角度
+            public void onSensorChanged(SensorEvent event) {
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
+                    System.arraycopy(event.values, 0, accelerometerReading, 0, accelerometerReading.length);
+                }else if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+                    System.arraycopy(event.values, 0 , magnetometerReading, 0, magnetometerReading.length);
                 }
+
+
+                SensorManager.getRotationMatrix(rotationMatrix, null, accelerometerReading, magnetometerReading);
+                SensorManager.getOrientation(rotationMatrix, orientationAngles);
+
+                if(listener != null)
+                    listener.onTranslation((float) Math.toDegrees(orientationAngles[0]), (float) Math.toDegrees(orientationAngles[1]),
+                            (float) Math.toDegrees(orientationAngles[2]));          // orientationAngles[0] around z azimuth [1] around x pitch，[2]around y roll
+
             }
 
             @Override
-            public void onAccuracyChanged(Sensor sensor, int i) {
+            public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
             }
         };
     }
 
     public void register(){
-        sensorManager.registerListener(sensorEventListener, sensor, sensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(sensorEventListener, accelerometer,sensorManager.SENSOR_DELAY_UI);
+        sensorManager.registerListener(sensorEventListener, magneticField,sensorManager.SENSOR_DELAY_UI);
     }
 
     public void unregister(){
         sensorManager.unregisterListener(sensorEventListener);
     }
 }
-
-
-

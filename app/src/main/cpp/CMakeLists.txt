@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.4.1)
 # #####OpenCV 环境
 include(dlib/cmake)
-#设置OpenCV-android-sdk路径
+#OpenCV-android-sdk
 set( OpenCV_DIR E:\\OpenCV-android-sdk-4.4.0\\sdk\\native\\jni )
 # 查找opencv库
 find_package(OpenCV REQUIRED )

@@ -1,7 +1,0 @@
-Executable : D:\Android\AndroidSDK\Sdk\cmake\3.10.2.4988404\bin\ninja.exe
-arguments : 
--C
-E:\AndroidStudioProjects\UITest\app\.cxx\cmake\debug\x86
-native-lib
-jvmArgs : 
-

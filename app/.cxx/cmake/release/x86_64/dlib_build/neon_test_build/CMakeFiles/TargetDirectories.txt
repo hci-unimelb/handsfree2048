@@ -1,3 +1,0 @@
-E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/x86_64/dlib_build/neon_test_build/CMakeFiles/neon_test.dir
-E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/x86_64/dlib_build/neon_test_build/CMakeFiles/edit_cache.dir
-E:/AndroidStudioProjects/UITest/app/.cxx/cmake/release/x86_64/dlib_build/neon_test_build/CMakeFiles/rebuild_cache.dir
